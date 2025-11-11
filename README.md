@@ -49,9 +49,8 @@ your-repository/
 │   └── readme.md                  # Project documentation (setup, API endpoints, etc.)
 ├── prompt/                        # LLM chat exports go here
 │   └── llm-chat-export.txt        # Exported LLM/AI assistant conversations
-├── test-cases/                    # Test cases documentation goes here
-│   └── test-cases.txt             # Documentation on how to run each use case
-└── README.md                      # Project README (optional, can include assignment context)
+└── test-cases/                    # Test cases documentation goes here
+    └── test-cases.txt             # Documentation on how to run each use case
 ```
 
 ### Required Files
