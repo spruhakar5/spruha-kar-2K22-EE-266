@@ -38,6 +38,25 @@ Make sure:
 - You have a stable internet connection
 - You're in a quiet space where you can focus
 
+## How to Submit
+
+1. **Create a private GitHub repository** named: `firstname-lastname-collegeid` (e.g., `john-doe-2024CS001`)
+
+2. **Organize your code** in this structure:
+   - `src/` - all your source code
+   - `src/readme.md` - setup, API docs, sample requests
+   - `prompt/llm-chat-export.txt` - your LLM conversation (if you used one)
+   - `test-cases/test-cases.txt` - how to test each feature
+
+3. **Push your code**:
+   ```bash
+   git add .
+   git commit -m "Initial submission"
+   git push -u origin main
+   ```
+
+Make sure your app runs locally before submitting.
+
 ---
 
 That's it. Keep it simple, build something that works, and be ready to explain your choices.
