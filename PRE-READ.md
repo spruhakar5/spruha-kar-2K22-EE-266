@@ -77,31 +77,6 @@ Before the interview, ensure you have:
 - [ ] You're in a quiet, distraction-free environment
 - [ ] You have a way to demo your application (screen sharing ready)
 
-## Tips for Success
-
-### During the Coding Round:
-
-1. **Read Carefully**: Take time to understand the problem requirements fully
-2. **Ask Questions**: Don't hesitate to ask for clarifications if needed
-3. **Start Simple**: Build a working solution first, then enhance if time permits
-4. **Test as You Go**: Verify your code works at each step
-5. **Document Your Decisions**: Make notes about why you made certain design choices (this will help if you're invited for the explanation interview)
-6. **Stay Calm**: 90 minutes is sufficient time - focus on building a working solution
-
-### If Invited for Explanation Interview:
-
-1. **Review Your Code**: Go through your solution before the interview
-2. **Prepare to Explain**: Be ready to walk through your code and explain your approach
-3. **Think About Alternatives**: Consider what you might have done differently and why
-4. **Be Honest**: If you used LLMs, be prepared to explain what you learned and how you adapted the code
-
-## What NOT to Worry About
-
-- ❌ Perfect code - focus on working, readable code
-- ❌ Using the "best" framework - use what you're comfortable with
-- ❌ Advanced features - a simple, working solution is better than incomplete complexity
-- ❌ Making mistakes - we understand you're working under time pressure
-
 ## Next Steps
 
 1. Review this document and ensure you meet all prerequisites
