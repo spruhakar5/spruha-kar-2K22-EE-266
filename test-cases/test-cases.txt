@@ -1,9 +1,161 @@
-Test Cases Documentation
+# Boostly — Test Cases Documentation
 
-Replace this file with documentation on how to run each use case from the problem.
+This file explains how to manually test each core feature of the Boostly application using the Swagger UI (/docs) or cURL commands.
 
-For each core functionality (Recognition, Endorsements, Redemption), document:
-- How to test the feature
-- Steps to execute the test
-- Expected results
+----------------------------------------------------------------
+# 1. STUDENT CREATION
+----------------------------------------------------------------
+## Objective:
+Create new student profiles who can send, receive, and redeem credits.
 
+## Steps:
+1. Go to POST /students
+2. Send the request body:
+   {
+     "name": "alice"
+   }
+3. Repeat for "bob" and "charlie"
+
+## Expected Result:
+- Response contains id, name, balance=100, monthly_sent=0
+- Example:
+  {
+    "id": 1,
+    "name": "alice",
+    "balance": 100,
+    "monthly_sent": 0
+  }
+
+
+----------------------------------------------------------------
+# 2. RECOGNITION (Send Credits)
+----------------------------------------------------------------
+## Objective:
+Allow one student to recognize another by sending credits.
+
+## Steps:
+1. Ensure you have at least two students created.
+2. Call POST /recognize with:
+   {
+     "sender_id": 1,
+     "recipient_id": 2,
+     "credits": 20
+   }
+
+## Expected Results:
+- Recognition record is created with a timestamp
+- Sender’s balance decreases by 20
+- Recipient’s balance increases by 20
+- Sender’s monthly_sent increases by 20
+
+## Negative Test:
+- sender_id == recipient_id → Expect HTTP 400 “Cannot recognize yourself”
+- credits > sender balance → Expect HTTP 400 “Insufficient balance”
+- credits > remaining monthly limit → Expect HTTP 400 “Monthly sending limit exceeded”
+
+
+----------------------------------------------------------------
+# 3. ENDORSEMENTS
+----------------------------------------------------------------
+## Objective:
+Allow a student to endorse (like) an existing recognition.
+
+## Steps:
+1. Create a recognition using /recognize
+2. Use POST /endorse:
+   {
+     "recognition_id": 1,
+     "endorser_id": 3
+   }
+
+## Expected Results:
+- Returns:
+  {
+    "message": "Endorsed",
+    "recognition_id": 1,
+    "endorser_id": 3
+  }
+
+## Negative Test:
+- Repeat the exact same request:
+  → Expect HTTP 400 “Endorser has already endorsed this recognition”
+
+
+----------------------------------------------------------------
+# 4. REDEMPTION
+----------------------------------------------------------------
+## Objective:
+Students redeem received credits for vouchers.
+
+## Steps:
+1. Ensure student has enough balance (use recognitions first)
+2. Call POST /redeem:
+   {
+     "student_id": 2,
+     "credits": 10
+   }
+
+## Expected Results:
+- Student’s balance decreases by 10
+- Response contains:
+  - redeemed_credits
+  - voucher_value_inr = credits * 5
+  - timestamp
+
+## Negative Test:
+- Redeeming more credits than balance → Expect HTTP 400 “Insufficient credits to redeem”
+
+
+----------------------------------------------------------------
+# 5. LEADERBOARD
+----------------------------------------------------------------
+## Objective:
+Return the top credit earners based on total received credits, recognition counts, and endorsements.
+
+## Steps:
+1. Create multiple recognitions for multiple students
+2. Call GET /leaderboard?limit=5
+
+## Expected Results:
+- Students sorted by total_credits_received (descending)
+- Tie-breaking by student_id (ascending)
+- Each entry includes:
+  - student_id
+  - name
+  - total_credits_received
+  - recognition_count
+  - endorsements_total
+
+
+----------------------------------------------------------------
+# 6. MONTHLY RESET (CARRY FORWARD)
+----------------------------------------------------------------
+## Objective:
+Reset monthly balances while carrying forward up to 50 unused credits.
+
+## Steps:
+1. Check current balances via GET /students
+2. Call:
+   POST /admin/reset_month?carry_forward=true
+
+## Expected Results:
+- Each student receives:
+  new_balance = 100 + min(previous_balance, 50)
+- monthly_sent resets to 0
+
+
+----------------------------------------------------------------
+# 7. BASIC HEALTH CHECK
+----------------------------------------------------------------
+## Objective:
+Verify the app is running
+
+## Steps:
+1. Launch server:
+   uvicorn src.main:app --reload
+2. Open:
+   http://127.0.0.1:8000/docs
+
+## Expected:
+- All endpoints visible
+- All endpoints callable
