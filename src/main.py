@@ -77,6 +77,9 @@ def get_student(student_id: int):
 
 @app.post("/recognize")
 def recognize(request: RecognitionRequest):
+    if request.credits <= 0:
+        raise HTTPException(status_code=400, detail="Credits must be positive")
+
     if request.sender_id == request.recipient_id:
         raise HTTPException(status_code=400, detail="Cannot recognize yourself")
 
@@ -161,6 +164,9 @@ def endorse(request: EndorseRequest):
 
 @app.post("/redeem")
 def redeem(request: RedemptionRequest):
+    if request.credits <= 0:
+        raise HTTPException(status_code=400, detail="Credits must be positive")
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -241,8 +247,10 @@ def reset_month(carry_forward: bool = Query(default=False)):
     for row in rows:
         row = dict(row)
 
-        carry = min(row["balance"], 50) if carry_forward else 0
-        new_balance = 100 + carry
+        unused = 100 - row["monthly_sent"]
+        carry = min(unused, 50)
+        new_balance = row["balance"] + carry
+
 
         cursor.execute(
             "UPDATE students SET balance=?, monthly_sent=? WHERE id=?",
