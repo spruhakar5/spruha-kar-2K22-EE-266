@@ -1,6 +1,946 @@
-LLM Chat Export
+You said : I have a coding challenge called “Boostly — boost morale, one kudos at a time.” The system must allow students to: - recognize other students and transfer credits - endorse recognitions - redeem credits for vouchers With rules like 100 monthly credits, no self-recognition, endorsement only once, and optional monthly reset + leaderboard. Can you explain the problem clearly and highlight the core business rules I must enforce on the backend?
+ChatGPT : Boostly is a peer-recognition system where students can appreciate each other by sending credits, endorsing recognitions, and redeeming earned credits. The backend must enforce strict credit rules to ensure fairness and prevent misuse.
 
-Replace this file with your exported LLM/AI assistant chat conversation.
+Core business rules:
 
-If you used LLMs or AI coding assistants (e.g., ChatGPT, Gemini Code Assist, Cursor AI), paste your complete conversation here.
+1. Recognition (Sending Credits)
 
+Each student receives 100 credits at the start of every month.
+
+A student can send credits to another student, but:
+
+Cannot send credits to themselves.
+
+Cannot send more credits than their current balance.
+
+Cannot exceed the monthly sending limit of 100 credits.
+
+Sending credits:
+
+Decreases the sender’s balance.
+
+Increases the recipient’s balance.
+
+Every recognition event must be recorded with sender, recipient, credits, and timestamp.
+
+2. Endorsements
+
+Any student can endorse an existing recognition.
+
+A student can endorse a specific recognition only once.
+
+Endorsements do not change credit balances; they act as social “likes”.
+
+Must be stored for analytics and leaderboard purposes.
+
+3. Redemption
+
+Students can convert earned credits into vouchers at ₹5 per credit.
+
+Students can only redeem credits they have received, not those allocated monthly.
+
+Once redeemed, credits are permanently deducted.
+
+Redemptions must be logged with timestamp and voucher value.
+
+4. Monthly Reset (Optional Step-Up Feature)
+
+Every month:
+
+Base credits reset to 100.
+
+Monthly sending limit resets to 100.
+
+Students may carry forward up to 50 unused credits.
+
+Extra balance beyond 50 carry-forward is discarded.
+
+5. Leaderboard (Optional Step-Up Feature)
+
+Ranks students based on:
+
+Total credits received (highest first)
+
+Total recognitions received
+
+Total endorsements
+
+Tie-breaker: student with smaller ID
+
+Backend enforcement requirements
+
+Prevent overspending or negative balances.
+
+Enforce monthly send cap.
+
+Reject self-recognition.
+
+Enforce unique endorsement per student per recognition.
+
+Accurately update balances and logs for recognition and redemption.
+
+Ensure leaderboard data is computed correctly and deterministically.
+
+In short, Boostly is part credit wallet, part social recognition system, and part rewards engine, with strict rules that the backend must reliably uphold.
+
+You said : Based on the requirements and 90-minute time limit, which backend stack should I use among Flask, FastAPI, Django, or Spring Boot? Explain the tradeoffs and which one gives me the fastest and cleanest implementation.
+
+ChatGPT : Given the tight 90-minute deadline, the best choice is FastAPI with Python. It offers the fastest setup, automatic documentation, built-in validation, and very little boilerplate.
+
+Why FastAPI is the best option
+
+Auto-generated Swagger UI lets you test endpoints instantly without writing docs.
+
+Pydantic models give input validation with almost no extra code.
+
+Minimal boilerplate compared to Django or Spring Boot.
+
+Very fast to write REST APIs—perfect for a timed challenge.
+
+Async-ready, but you can still write simple synchronous code.
+
+Lightweight—no heavy setup like Django migrations or Spring configuration.
+
+Why not Flask
+
+Flask requires:
+
+manual input validation
+
+manual API documentation
+
+more boilerplate
+
+It is flexible but slower to build correctly under time pressure.
+
+Why not Django
+
+Too heavy for this task.
+
+Requires models, migrations, configuration, settings setup.
+
+Time-consuming for a simple API project.
+
+Why not Spring Boot
+
+Excellent for production systems, but:
+
+Much slower to set up
+
+More code required
+
+More complex structure
+
+Hard to complete in 90 minutes unless you're extremely fast with Java.
+
+Conclusion
+
+FastAPI + SQLite gives the cleanest, fastest, and easiest-to-debug implementation.
+Under time constraints, this stack allows you to focus on business logic instead of setup.
+
+You said : Help me design the database schema for this system, including tables and constraints for students, recognitions, endorsements, redemptions, and monthly send limits.
+
+ChatGPT : A simple relational schema with four main tables is enough for this system. Each table enforces the key business rules like monthly limits, unique endorsements, and correct credit tracking.
+
+1. students
+
+Stores each student’s current credit balance and monthly usage.
+
+Column	Type	Notes
+id	INTEGER PK AUTOINCREMENT	Unique student ID
+name	TEXT NOT NULL	Student name
+balance	INTEGER NOT NULL	Current available credits
+monthly_sent	INTEGER NOT NULL	Total credits sent this month
+
+Purpose:
+Tracks each student’s credit wallet and monthly sending progress.
+
+2. recognitions
+
+Stores each recognition event where credits are transferred.
+
+Column	Type	Notes
+id	INTEGER PK AUTOINCREMENT	
+sender_id	INTEGER	FK → students.id
+recipient_id	INTEGER	FK → students.id
+credits	INTEGER	Credits transferred
+timestamp	TEXT	ISO UTC timestamp
+
+Constraints / Rules:
+
+Must store each credit transfer event
+
+Used to compute leaderboard and redemption eligibility
+
+3. endorsements
+
+Stores likes/endorsements of recognition entries.
+
+Column	Type	Notes
+id	INTEGER PK AUTOINCREMENT	
+recognition_id	INTEGER	FK → recognitions.id
+endorser_id	INTEGER	FK → students.id
+
+Important Constraint:
+
+UNIQUE(recognition_id, endorser_id)
+
+
+This ensures a student can endorse a recognition only once.
+
+4. redemptions
+
+Logs credit redemptions and the voucher value provided.
+
+Column	Type	Notes
+id	INTEGER PK AUTOINCREMENT	
+student_id	INTEGER	FK → students.id
+credits	INTEGER	Credits redeemed
+voucher_value	INTEGER	INR amount = credits × 5
+timestamp	TEXT	ISO UTC timestamp
+
+Purpose:
+
+Tracks redeemed credits so total wallet balance stays correct
+
+Provides auditable records
+
+Monthly Reset Logic (Not a table)
+
+No special table is required.
+You can compute monthly reset as:
+
+Reset monthly_sent = 0
+
+New balance = 100 + min(old_balance, 50) (if carry forward enabled)
+
+The students table already stores everything needed.
+
+Schema Justification
+
+The schema supports every business rule.
+
+Simple enough for a 90-minute challenge.
+
+SQLite handles all constraints easily.
+
+Foreign keys and UNIQUE constraints guard against invalid entries.
+
+Allows simple JOIN queries for leaderboard computation.
+
+You said : What edge cases must I handle in the recognition (credit transfer) feature to ensure no incorrect transfers, negative credits, or bypass of monthly caps?
+
+ChatGPT : Here are all the essential edge cases the backend must enforce for the recognition (credit transfer) feature:
+
+1. Self-recognition
+
+Sender and recipient cannot be the same.
+
+Reject if sender_id == recipient_id.
+
+2. Sender does not exist
+
+If the sender ID is invalid, reject the request.
+
+3. Recipient does not exist
+
+If the recipient ID is invalid, reject the request.
+
+4. Sending more credits than the sender’s balance
+
+If request.credits > sender.balance, reject the transfer.
+
+5. Monthly sending limit exceeded
+
+Each student can send at most 100 credits per calendar month.
+
+If sender.monthly_sent + request.credits > 100, reject.
+
+6. Negative or zero credit transfer
+
+Credits must be strictly positive.
+
+Zero or negative credits should be rejected.
+
+7. Large or unrealistic credit amounts
+
+Prevent sending absurdly large values (optional but good practice).
+
+Should reject extremely large integers for safety.
+
+8. Timestamp consistency
+
+Ensure each recognition event stores a proper UTC timestamp.
+
+9. No partial updates
+
+Use transactions (SQLite auto-commits) to ensure:
+
+Either both sender and recipient updates succeed,
+
+Or neither does.
+
+Prevent inconsistent balances on failure.
+
+10. SQL injection / invalid body
+
+Rely on FastAPI + Pydantic input validation to prevent malformed requests.
+
+11. Reject recognition if the student has negative balance
+
+Ensure no corruption has created a negative balance.
+
+If detected, reject or normalize.
+
+12. Handle concurrent requests (basic safety)
+
+SQLite is single-threaded write-safe, but logic should still avoid:
+
+double-deduction
+
+race conditions
+
+Ensure read-modify-write operations happen in order.
+
+Summary
+
+To prevent incorrect credit transfers, the backend must validate:
+
+valid sender & recipient
+
+not the same student
+
+sender has enough balance
+
+monthly cap is not exceeded
+
+credits are positive
+
+all DB updates succeed together
+
+These checks guarantee balance integrity, fairness, and full rule enforcement.
+
+You said : What validations must I implement in the redemption feature to prevent students from redeeming more credits than they earned?
+
+ChatGPT : Here are the key validations required to ensure students cannot redeem more credits than they actually earned:
+
+1. Student must exist
+
+If the provided student_id is not in the database, reject the request.
+
+2. Credits to redeem must be positive
+
+Reject zero or negative credit redemption attempts.
+
+3. Student must have enough available balance
+
+Redemption can only occur from the current balance.
+
+If requested_credits > student.balance, reject the request.
+
+4. Student can only redeem earned credits
+
+Students receive 100 monthly credits as an allowance.
+
+Redemption must apply only to credits they have accumulated from recognition.
+
+This is enforced automatically by using their current balance.
+
+5. Ensure no negative balance after redemption
+
+After deducting redeemed credits, the student’s balance must remain ≥ 0.
+
+6. Record the redemption event
+
+Log the redemption in a separate table with:
+
+student_id
+
+credits redeemed
+
+voucher value
+
+timestamp
+
+This ensures proper auditing and prevents repeated redemption of the same credits.
+
+7. Large or unrealistic redemption values
+
+Just like recognition, reject extremely large numbers for safety.
+
+8. Proper calculation of voucher amount
+
+Voucher value must be: credits × 5.
+
+Summary
+
+Before redeeming, check:
+
+Student exists
+
+Credits are positive
+
+Student has enough balance
+
+Balance won’t go negative
+
+Redemption is logged correctly
+
+These validations fully prevent misuse and ensure redemption is fair and audit-safe.
+
+You said : Give me a list of manual test cases I should run in Swagger UI to verify all endpoints, including happy paths and edge cases.
+
+ChatGPT : Here is a clean, complete set of manual test cases you can execute directly in Swagger UI.
+They cover happy paths, negative cases, and edge cases for every endpoint.
+
+1. Student Creation Tests
+1.1 Create a valid student (happy path)
+
+POST /students
+
+{ "name": "alice" }
+
+
+Expected:
+
+Status 200
+
+Returns { id, name, balance: 100, monthly_sent: 0 }
+
+1.2 Create another student
+{ "name": "bob" }
+
+
+Expected same structure.
+
+1.3 Missing name
+{}
+
+
+Expected: 422 validation error.
+
+2. Recognition (Credit Transfer)
+2.1 Valid recognition
+
+Alice → Bob: 20 credits
+
+{
+  "sender_id": 1,
+  "recipient_id": 2,
+  "credits": 20
+}
+
+
+Expected:
+
+Sender balance decreases
+
+Recipient balance increases
+
+recognition_id returned
+
+2.2 Self-recognition
+{
+  "sender_id": 1,
+  "recipient_id": 1,
+  "credits": 10
+}
+
+
+Expected:
+400 error: "Cannot recognize yourself"
+
+2.3 Sender does not exist
+{
+  "sender_id": 99,
+  "recipient_id": 2,
+  "credits": 10
+}
+
+
+Expected:
+404 “Sender or recipient not found”
+
+2.4 Recipient does not exist
+{
+  "sender_id": 1,
+  "recipient_id": 999,
+  "credits": 10
+}
+
+
+Expected:
+404 “Sender or recipient not found”
+
+2.5 Insufficient balance
+
+If Alice has 80 left, test:
+
+{
+  "sender_id": 1,
+  "recipient_id": 2,
+  "credits": 200
+}
+
+
+Expected:
+400 “Insufficient balance”
+
+2.6 Monthly limit exceeded
+
+If sender.monthly_sent = 90:
+
+{
+  "sender_id": 1,
+  "recipient_id": 2,
+  "credits": 20
+}
+
+
+Expected:
+400 “Monthly sending limit exceeded”
+
+2.7 Zero or negative credits
+{
+  "sender_id": 1,
+  "recipient_id": 2,
+  "credits": 0
+}
+
+
+Expected:
+422 validation or custom 400 error.
+
+3. Endorsement Tests
+3.1 Valid endorsement
+{
+  "recognition_id": 1,
+  "endorser_id": 3
+}
+
+
+Expected:
+Success message.
+
+3.2 Duplicate endorsement
+
+Submit again:
+
+{
+  "recognition_id": 1,
+  "endorser_id": 3
+}
+
+
+Expected:
+400 “Endorser has already endorsed this recognition”
+
+3.3 Endorse non-existing recognition
+{
+  "recognition_id": 999,
+  "endorser_id": 3
+}
+
+
+Expected:
+404 “Recognition not found”
+
+4. Redemption Tests
+4.1 Valid redemption
+
+Bob redeems 10 credits:
+
+{
+  "student_id": 2,
+  "credits": 10
+}
+
+
+Expected:
+
+Redeemed credits deducted
+
+Voucher value = 50
+
+4.2 Redeem more than balance
+{
+  "student_id": 2,
+  "credits": 500
+}
+
+
+Expected:
+400 “Insufficient credits to redeem”
+
+4.3 Negative redemption
+{
+  "student_id": 2,
+  "credits": -5
+}
+
+
+Expected:
+422 or custom 400 error.
+
+4.4 Non-existing student
+{
+  "student_id": 999,
+  "credits": 10
+}
+
+
+Expected:
+404 “Student not found”
+
+5. Leaderboard Tests
+5.1 Basic leaderboard fetch
+
+GET /leaderboard?limit=10
+
+Expected:
+
+Sorted by total credits received desc
+
+Includes recognition_count & endorsements_total
+
+5.2 Limit parameter
+
+GET /leaderboard?limit=1
+
+Expected:
+
+Only 1 student returned
+
+6. Monthly Reset Tests
+6.1 Reset without carry forward
+
+POST /admin/reset_month?carry_forward=false
+
+Expected:
+
+All students → balance = 100
+
+monthly_sent = 0
+
+6.2 Reset with carry forward
+
+If a student has 160 balance:
+
+Carry forward only 50 → new balance = 150
+
+7. Student Retrieval Tests
+7.1 Get student by ID
+
+GET /students/1
+
+Expected: student info.
+
+7.2 Student does not exist
+
+GET /students/999
+
+Expected: 404 error.
+
+Summary
+
+These test cases cover:
+
+All happy paths
+
+All important edge cases
+
+All invalid inputs
+
+Validation of business rules
+
+Correct balance updates
+
+Proper restriction of endorsements
+
+Redemption safety
+
+Monthly reset logic
+
+Leaderboard correctness
+
+You said : FastAPI cannot find my database module. What changes should I make to Python imports and project structure to fix module resolution?
+
+ChatGPT : To fix FastAPI not finding the database module, you need to adjust both the project structure and the import path so Python treats src/ as a proper package.
+Here are the exact changes required:
+
+1. Add __init__.py inside the src/ folder
+This makes src a Python package.
+Your structure should look like:
+ai-coding-round/
+   src/
+      __init__.py
+      main.py
+      database.py
+
+The __init__.py file can be empty.
+
+2. Update the import statement in main.py
+Replace:
+from database import init_db, get_connection
+
+with:
+from src.database import init_db, get_connection
+
+This ensures Python resolves the import relative to the package.
+
+3. Run FastAPI from the project root
+Make sure you are inside:
+ai-coding-round/
+
+Then run:
+uvicorn src.main:app --reload
+
+Running from the root ensures Python can resolve the src package properly.
+
+4. Keep the folder structure clean
+The final working structure:
+ai-coding-round/
+├── src/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── database.py
+├── prompt/
+│   └── llm-chat-export.txt
+├── test-cases/
+│   └── test-cases.txt
+├── requirements.txt
+
+
+By making src a package and using from src.database import …, FastAPI will always find the module correctly.
+
+You said : Help me write a complete README.md for this project, including setup, how to run, API documentation, and sample requests.
+
+ChatGPT : Here is a clean, direct, professional README.md you can paste into your src/readme.md.
+No extra explanations — just the README content itself.
+
+Boostly — Student Recognition Platform
+
+Boostly is a lightweight backend application that enables students to recognize peers by sending credits, endorse recognitions, and redeem credits for vouchers. The system enforces strict business rules such as monthly credit limits, no self-recognition, and unique endorsements.
+
+This implementation is built using FastAPI and SQLite.
+
+1. Setup Instructions
+1.1 Create Virtual Environment
+
+Windows
+
+python -m venv venv
+venv\Scripts\Activate.ps1
+
+
+Mac/Linux
+
+python3 -m venv venv
+source venv/bin/activate
+
+1.2 Install Dependencies
+pip install -r requirements.txt
+
+1.3 Database Setup
+
+No manual steps required.
+The SQLite database (data.db) is automatically created when the app starts.
+
+2. Running the Application
+
+Start the server:
+
+uvicorn src.main:app --reload
+
+
+Application runs at:
+
+http://127.0.0.1:8000
+
+
+Interactive API docs (Swagger UI):
+
+http://127.0.0.1:8000/docs
+
+3. API Endpoints
+3.1 Create Student
+
+POST /students
+
+Request:
+
+{
+  "name": "alice"
+}
+
+
+Response:
+
+Creates a new student
+
+Initializes balance to 100 credits
+
+monthly_sent = 0
+
+3.2 List Students
+
+GET /students
+Returns list of all students with current balances.
+
+3.3 Get Student by ID
+
+GET /students/{student_id}
+
+4. Recognition (Send Credits)
+POST /recognize
+
+Request:
+
+{
+  "sender_id": 1,
+  "recipient_id": 2,
+  "credits": 20
+}
+
+
+Business rules enforced:
+
+No self-recognition
+
+Sender must exist
+
+Recipient must exist
+
+Sender cannot send more credits than balance
+
+Sender cannot exceed monthly limit of 100 credits
+
+Response includes:
+
+recognition_id
+
+sender_id
+
+recipient_id
+
+credits
+
+timestamp
+
+5. Endorse Recognition
+POST /endorse
+
+Request:
+
+{
+  "recognition_id": 1,
+  "endorser_id": 3
+}
+
+
+Rules:
+
+Endorsement allowed only once per (recognition_id, endorser_id)
+
+Duplicate endorsements return an error
+
+6. Redemption
+POST /redeem
+
+Request:
+
+{
+  "student_id": 2,
+  "credits": 10
+}
+
+
+Rules:
+
+Student must have enough balance
+
+Redemption deducts credits permanently
+
+Voucher value = credits × ₹5
+
+Response:
+
+{
+  "student_id": 2,
+  "redeemed_credits": 10,
+  "voucher_value_inr": 50,
+  "timestamp": "..."
+}
+
+7. Leaderboard
+GET /leaderboard?limit=10
+
+Returns ranking based on:
+
+total credits received
+
+total recognitions
+
+total endorsements
+
+tie-break by student ID
+
+8. Monthly Reset
+POST /admin/reset_month?carry_forward=true
+
+Rules:
+
+Base credits reset to 100
+
+monthly_sent reset to 0
+
+Up to 50 unused credits carried forward if enabled
+
+Response includes timestamp.
+
+9. Sample Quick Test Flow
+Create Students
+POST /students {"name":"alice"}
+POST /students {"name":"bob"}
+
+Recognition
+POST /recognize {"sender_id":1,"recipient_id":2,"credits":20}
+
+Check Balance
+GET /students/2
+
+Endorse
+POST /endorse {"recognition_id":1,"endorser_id":3}
+
+Redeem
+POST /redeem {"student_id":2,"credits":10}
+
+Leaderboard
+GET /leaderboard?limit=5
+
+Monthly Reset
+POST /admin/reset_month?carry_forward=true
+
+10. Project Structure
+src/
+   main.py
+   database.py
+   __init__.py
+   readme.md
+prompt/
+   llm-chat-export.txt
+test-cases/
+   test-cases.txt
+requirements.txt
+
+11. Notes on Security
+
+Business rules validated on every request
+
+UNIQUE constraint prevents duplicate endorsements
+
+Balance updates are atomic
+
+Input validation handled via Pydantic models
+
+End of Documentation
